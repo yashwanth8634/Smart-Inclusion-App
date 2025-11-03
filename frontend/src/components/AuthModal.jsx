@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 
@@ -21,17 +21,23 @@ const FormInput = ({ id, label, type = 'text', placeholder, value, onChange, req
 );
 
 const AuthModal = ({ isOpen, onClose, initialTab }) => {
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(initialTab || 'login');
   const { login } = useContext(AuthContext);
   const [error, setError] = useState(null);
 
-  const [regFormData, setRegFormData] = useState({
+  const [regUserData, setRegUserData] = useState({
     fullName: '',
     email: '',
     phone: '',
     password: '',
     disabilityType: 'none',
-    isVolunteer: false,
+  });
+
+  const [regVolunteerData, setRegVolunteerData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
   });
 
   const [loginData, setLoginData] = useState({
@@ -40,12 +46,14 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
     loginAs: 'user',
   });
 
-  const handleRegInputChange = (e) => {
-    const { id, value, type, checked } = e.target;
-    setRegFormData((prev) => ({
-      ...prev,
-      [id]: type === 'checkbox' ? checked : value,
-    }));
+  const handleRegUserInputChange = (e) => {
+    const { id, value } = e.target;
+    setRegUserData((prev) => ({ ...prev, [id]: value }));
+  };
+  
+  const handleRegVolunteerInputChange = (e) => {
+    const { id, value } = e.target;
+    setRegVolunteerData((prev) => ({ ...prev, [id]: value }));
   };
 
   const handleLoginInputChange = (e) => {
@@ -56,18 +64,38 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
       setLoginData((prev) => ({ ...prev, [id]: value }));
     }
   };
-
+  
   useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    if (isOpen) {
+      setActiveTab(initialTab || 'login');
+      setError(null);
+    }
+  }, [isOpen, initialTab]);
 
-  const handleRegisterSubmit = async (e) => {
+  const handleUserRegisterSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     try {
       const res = await axios.post(
-        'http://localhost:3000/api/auth/register', 
-        regFormData
+        'http://localhost:3000/api/auth/register/user', 
+        regUserData
+      );
+      console.log(res.data);
+      alert('Registration Successful! Please log in.');
+      setActiveTab('login');
+    } catch (error) {
+      console.error('Registration failed:', error.response.data.message);
+      setError(error.response.data.message);
+    }
+  };
+  
+  const handleVolunteerRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      const res = await axios.post(
+        'http://localhost:3000/api/auth/register/volunteer', 
+        regVolunteerData
       );
       console.log(res.data);
       alert('Registration Successful! Please log in.');
@@ -113,10 +141,19 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-text-secondary hover:text-text-primary"
+          className="absolute top-4 right-4 text-text-secondary hover:text-text-primary z-10"
         >
           <FaTimes />
         </button>
+
+        {activeTab.startsWith('register') && activeTab !== 'register' && (
+          <button
+            onClick={() => switchTab('register')}
+            className="absolute top-4 left-4 text-text-secondary hover:text-text-primary z-10"
+          >
+            <FaArrowLeft />
+          </button>
+        )}
 
         <div className="flex border-b border-border">
           <button
@@ -131,7 +168,7 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
           </button>
           <button
             className={`flex-1 py-3 font-semibold ${
-              activeTab === 'register'
+              activeTab.startsWith('register')
                 ? 'text-accent border-b-2 border-accent'
                 : 'text-text-secondary'
             }`}
@@ -142,17 +179,17 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
         </div>
 
         <div className="p-6">
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
+              {error}
+            </div>
+          )}
+
           {activeTab === 'login' && (
             <form onSubmit={handleLoginSubmit}>
               <h3 className="text-xl font-bold text-text-primary mb-1">Welcome Back</h3>
               <p className="text-text-secondary mb-6">Sign in to your account</p>
               
-              {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
-                  {error}
-                </div>
-              )}
-
               <FormInput 
                 id="email" 
                 label="Email" 
@@ -213,22 +250,37 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
           )}
 
           {activeTab === 'register' && (
-            <form onSubmit={handleRegisterSubmit}>
-              <h3 className="text-xl font-bold text-text-primary mb-1">Create Account</h3>
-              <p className="text-text-secondary mb-6">Join the Smart Inclusion community</p>
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-text-primary mb-1">Join the Community</h3>
+              <p className="text-text-secondary mb-6">How would you like to register?</p>
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={() => switchTab('registerUser')}
+                  className="w-full py-3 text-lg bg-accent text-white font-bold rounded-lg"
+                >
+                  Register as a User
+                </button>
+                <button
+                  onClick={() => switchTab('registerVolunteer')}
+                  className="w-full py-3 text-lg text-accent border-2 border-accent rounded-lg"
+                >
+                  Register as a Volunteer
+                </button>
+              </div>
+            </div>
+          )}
 
-              {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
-                  {error}
-                </div>
-              )}
+          {activeTab === 'registerUser' && (
+            <form onSubmit={handleUserRegisterSubmit}>
+              <h3 className="text-xl font-bold text-text-primary mb-1">Create User Account</h3>
+              <p className="text-text-secondary mb-6">Join the Smart Inclusion community</p>
               
               <FormInput 
                 id="fullName" 
                 label="Full Name" 
                 placeholder="Enter your full name"
-                value={regFormData.fullName}
-                onChange={handleRegInputChange} 
+                value={regUserData.fullName}
+                onChange={handleRegUserInputChange} 
                 required={true}
               />
               <FormInput 
@@ -236,8 +288,8 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
                 label="Email" 
                 type="email" 
                 placeholder="Enter your email"
-                value={regFormData.email}
-                onChange={handleRegInputChange} 
+                value={regUserData.email}
+                onChange={handleRegUserInputChange} 
                 required={true}
               />
               <FormInput 
@@ -245,8 +297,8 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
                 label="Phone Number" 
                 type="tel" 
                 placeholder="Enter your phone"
-                value={regFormData.phone}
-                onChange={handleRegInputChange} 
+                value={regUserData.phone}
+                onChange={handleRegUserInputChange} 
                 required={true}
               />
               <FormInput 
@@ -254,8 +306,8 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
                 label="Password" 
                 type="password" 
                 placeholder="Create a password"
-                value={regFormData.password}
-                onChange={handleRegInputChange} 
+                value={regUserData.password}
+                onChange={handleRegUserInputChange} 
                 required={true}
               />
 
@@ -265,8 +317,8 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
                 </label>
                 <select
                   id="disabilityType"
-                  value={regFormData.disabilityType}
-                  onChange={handleRegInputChange}
+                  value={regUserData.disabilityType}
+                  onChange={handleRegUserInputChange}
                   className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent"
                 >
                   <option value="none">I am registering as a user</option>
@@ -277,24 +329,61 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
                 </select>
               </div>
               
-              <div className="flex items-center">
-                <input
-                  id="isVolunteer"
-                  type="checkbox"
-                  checked={regFormData.isVolunteer}
-                  onChange={handleRegInputChange}
-                  className="h-4 w-4 text-accent bg-background-secondary border-border rounded focus:ring-accent"
-                />
-                <label htmlFor="isVolunteer" className="ml-2 block text-sm text-text-secondary">
-                  I also want to register as a **Volunteer**
-                </label>
-              </div>
-              
               <button
                 type="submit"
                 className="w-full mt-6 py-2 bg-accent hover:bg-accent-hover text-white font-bold rounded-lg"
               >
                 Create Account
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'registerVolunteer' && (
+            <form onSubmit={handleVolunteerRegisterSubmit}>
+              <h3 className="text-xl font-bold text-text-primary mb-1">Create Volunteer Account</h3>
+              <p className="text-text-secondary mb-6">Help us build an accessible world</p>
+              
+              <FormInput 
+                id="fullName" 
+                label="Full Name" 
+                placeholder="Enter your full name"
+                value={regVolunteerData.fullName}
+                onChange={handleRegVolunteerInputChange} 
+                required={true}
+              />
+              <FormInput 
+                id="email" 
+                label="Email" 
+                type="email" 
+                placeholder="Enter your email"
+                value={regVolunteerData.email}
+                onChange={handleRegVolunteerInputChange} 
+                required={true}
+              />
+              <FormInput 
+                id="phone" 
+                label="Phone Number" 
+                type="tel" 
+                placeholder="Enter your phone"
+                value={regVolunteerData.phone}
+                onChange={handleRegVolunteerInputChange} 
+                required={true}
+              />
+              <FormInput 
+                id="password" 
+                label="Password" 
+                type="password" 
+                placeholder="Create a password"
+                value={regVolunteerData.password}
+                onChange={handleRegVolunteerInputChange} 
+                required={true}
+              />
+              
+              <button
+                type="submit"
+                className="w-full mt-6 py-2 bg-accent hover:bg-accent-hover text-white font-bold rounded-lg"
+              >
+                Create Volunteer Account
               </button>
             </form>
           )}

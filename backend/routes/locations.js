@@ -1,30 +1,38 @@
-const mongoose = require('mongoose');
+const express = require('express');
+const router = express.Router();
+const Location = require('../models/Location');
 
-const locationSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-  },
-  address: {
-    type: String,
-    required: true,
-  },
-  coordinates: {
-    lat: { type: Number, required: true },
-    lng: { type: Number, required: true },
-  },
-  accessibility: {
-    hasRamp: { type: Boolean, default: false },
-    hasTactilePath: { type: Boolean, default: false },
-    accessibleWashroom: { type: Boolean, default: false },
-  },
-  addedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
-}, { timestamps: true });
+router.get('/', async (req, res) => {
+  try {
+    const locations = await Location.find();
+    res.status(200).json(locations);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
-const Location = mongoose.model('Location', locationSchema);
+router.post('/', async (req, res) => {
+  try {
+    const { name, address, coordinates, accessibility, addedBy } = req.body;
 
-module.exports = Location;
+    if (!name || !address || !coordinates || !accessibility || !addedBy) {
+      return res.status(400).json({ message: 'Please fill all fields.' });
+    }
+
+    const newLocation = new Location({
+      name,
+      address,
+      coordinates,
+      accessibility,
+      addedBy,
+    });
+
+    const savedLocation = await newLocation.save();
+    res.status(201).json(savedLocation);
+    
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+module.exports = router;

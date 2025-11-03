@@ -20,9 +20,13 @@ const userSchema = new mongoose.Schema({
   },
   disabilityType: {
     type: String,
-    enum: ['mobility', 'visual', 'hearing', 'other', 'none'],
-    default: 'none',
+    required: true,
+    enum: ['mobility', 'visual', 'hearing', 'other'],
   },
+  disabilityOther: {
+    type: String,
+    default: '',
+  }
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Features from '../components/Features';
+import AboutSection from '../components/AboutPage'; // 1. Import
 import Footer from '../components/Footer';
 import AuthModal from '../components/AuthModal';
 
@@ -27,9 +28,8 @@ const LandingPage = () => {
       <Hero 
         onRegisterClick={() => openModal('register')}
       />
-      
       <Features />
-      
+      <AboutSection /> {/* 2. Add the component here */}
       <Footer />
 
       <AuthModal
