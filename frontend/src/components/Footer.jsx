@@ -42,10 +42,10 @@ const Footer = () => {
               Your gateway to an accessible world. Empowering persons with disabilities through technology.
             </p>
             <div className="flex gap-4">
-              <SocialIcon href="#" icon={<FaFacebook size={20} />} />
-              <SocialIcon href="#" icon={<FaTwitter size={20} />} />
-              <SocialIcon href="#" icon={<FaInstagram size={20} />} />
-              <SocialIcon href="#" icon={<FaLinkedin size={20} />} />
+              <SocialIcon href="https://www.facebook.com/" icon={<FaFacebook size={20} />} />
+              <SocialIcon href="https://x.com/" icon={<FaTwitter size={20} />} />
+              <SocialIcon href="https://www.instagram.com/" icon={<FaInstagram size={20} />} />
+              <SocialIcon href="https://www.linkedin.com/" icon={<FaLinkedin size={20} />} />
             </div>
           </div>
 
