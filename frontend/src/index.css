@@ -1,0 +1,20 @@
+/* src/index.css */
+
+/* 1. Imports Tailwind */
+@import "tailwindcss";
+
+/* 2. Defines all your fonts and colors */
+@theme {
+  /* Fonts */
+  --font-sans: 'Alan Sans', sans-serif;
+  --font-display: 'Google Sans Code', monospace;
+
+  /* Colors (White Theme) */
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f3f4f6;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-border: #e5e7eb;
+}
