@@ -58,8 +58,7 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
         </Link>
 
         <div className="hidden md:flex items-center gap-6">
-          <NavLink href="/">Home</NavLink>
-          <NavLink href="/schemes">Schemes</NavLink>
+          <AnchorLink href="/#home">Home</AnchorLink>
           <AnchorLink href="/#about">About</AnchorLink>
           <MapLink />
         </div>
@@ -110,7 +109,6 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
         </button>
 
         <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-2xl text-text-primary hover:text-accent">Home</Link>
-        <Link to="/schemes" onClick={() => setIsMenuOpen(false)} className="text-2xl text-text-primary hover:text-accent">Schemes</Link>
         <a href="/#about" onClick={() => setIsMenuOpen(false)} className="text-2xl text-text-primary hover:text-accent">About</a>
         <MobileMapLink closeMenu={() => setIsMenuOpen(false)} />
         

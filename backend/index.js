@@ -1,10 +1,13 @@
 const express = require('express');
-const cors = require('cors');
+const cors =require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const http = require('http');
+const { Server } = require("socket.io");
 
 const authRoutes = require('./routes/auth');
-const locationRoutes = require('./routes/locations'); // 1. Import
+const locationRoutes = require('./routes/locations');
+const schemeRoutes = require('./routes/schemes');
 
 const app = express();
 
@@ -25,7 +28,8 @@ mongoose.connect(uri)
   });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/locations', locationRoutes); // 2. Use
+app.use('/api/locations', locationRoutes);
+app.use('/api/schemes', schemeRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hello from the Smart Inclusion Server!');
@@ -33,6 +37,29 @@ app.get('/', (req, res) => {
 
 const PORT = 3000;
 
-app.listen(PORT, () => {
+// --- Socket.io Setup ---
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log(`User connected: ${socket.id}`);
+
+  socket.on('send_sos', (data) => {
+    console.log('SOS Received:', data);
+    io.emit('receive_sos', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.id}`);
+  });
+});
+// -----------------------
+
+server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

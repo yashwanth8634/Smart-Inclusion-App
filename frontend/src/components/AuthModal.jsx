@@ -30,7 +30,8 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
     email: '',
     phone: '',
     password: '',
-    disabilityType: 'none',
+    disabilityType: '', // Changed: Set to empty string
+    disabilityOther: '', // Added: New field
   });
 
   const [regVolunteerData, setRegVolunteerData] = useState({
@@ -313,21 +314,33 @@ const AuthModal = ({ isOpen, onClose, initialTab }) => {
 
               <div className="mb-4">
                 <label htmlFor="disabilityType" className="block text-sm font-medium text-text-secondary mb-1">
-                  Disability Type (Optional)
+                  Disability Type
                 </label>
                 <select
                   id="disabilityType"
                   value={regUserData.disabilityType}
                   onChange={handleRegUserInputChange}
+                  required={true}
                   className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg text-text-primary focus:outline-none focus:border-accent"
                 >
-                  <option value="none">I am registering as a user</option>
+                  <option value="" disabled>Please select one</option>
                   <option value="mobility">Mobility Impairment</option>
                   <option value="visual">Visual Impairment</option>
                   <option value="hearing">Hearing Impairment</option>
                   <option value="other">Other</option>
                 </select>
               </div>
+              
+              {regUserData.disabilityType === 'other' && (
+                <FormInput 
+                  id="disabilityOther" 
+                  label="Please Specify" 
+                  placeholder="e.g. Cognitive, etc."
+                  value={regUserData.disabilityOther}
+                  onChange={handleRegUserInputChange} 
+                  required={true}
+                />
+              )}
               
               <button
                 type="submit"

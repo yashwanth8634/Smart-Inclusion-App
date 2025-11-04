@@ -29,7 +29,7 @@ const LandingPage = () => {
         onRegisterClick={() => openModal('register')}
       />
       <Features />
-      <AboutSection /> {/* 2. Add the component here */}
+      <AboutSection /> 
       <Footer />
 
       <AuthModal
