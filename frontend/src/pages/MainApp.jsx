@@ -1,23 +1,27 @@
 import React, { useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { MapContainer, TileLayer, Marker, CircleMarker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from 'axios';
 import L from 'leaflet';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
-import { FaCrosshairs, FaExclamationTriangle, FaPlus, FaUser, FaFileAlt, FaTrash, FaMicrophone, FaSpinner, FaEdit } from 'react-icons/fa';
+import { FaCrosshairs, FaExclamationTriangle, FaPlus, FaUser, FaFileAlt, FaTrash, FaMicrophone, FaSpinner, FaEdit, FaStar, FaHistory } from 'react-icons/fa';
 
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 
 import { socket } from '../socket';
-import SOSAlertModal from '../components/SOSAlertModal';
 import SOSModal from '../components/SOSModal';
 import AddLocationModal from '../components/AddLocationModal';
 import MapClickHandler from '../components/MapClickHandler';
 import ProfileModal from '../components/ProfileModal';
 import SchemesModal from '../components/SchemesModal';
-import InfoBox from '../components/InfoBox'; // Import the new InfoBox
+import InfoBox from '../components/InfoBox';
+import SOSAlertModal from '../components/SOSAlertModal';
+import SOSAcceptedModal from '../components/SOSAcceptedModal';
+import FeedbackModal from '../components/FeedbackModal';
+import LocationReviewModal from '../components/LocationReviewModal';
+import VolunteerReviewModal from '../components/VolunteerReviewModal'; 
 import { speak } from '../utils/speech';
 
 const DefaultIcon = L.icon({
@@ -27,6 +31,85 @@ const DefaultIcon = L.icon({
     iconAnchor: [12, 41],
     popupAnchor: [1, -34]
 });
+
+// LocationPopup component now renders the InfoBox content for map popups
+const LocationPopup = ({ loc, auth, handleDeleteLocation, onEditClick, onReviewClick }) => {
+  const isVolunteer = auth.user.role === 'volunteer';
+  const isOwner = loc.addedBy.toString() === auth.user.id;
+  const canModify = isVolunteer && isOwner;
+  const canReview = auth.user.role === 'user' && !isOwner;
+
+  return (
+    <Popup>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'Alan Sans', minWidth: '200px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{loc.name}</span>
+          {canModify && (
+            <div className="flex gap-2">
+              <div 
+                onClick={() => onEditClick(loc)}
+                style={{
+                  cursor: 'pointer',
+                  color: '#7c3aed',
+                  padding: '5px'
+                }}
+              >
+                <FaEdit />
+              </div>
+              <div 
+                onClick={() => handleDeleteLocation(loc._id)}
+                style={{
+                  cursor: 'pointer',
+                  color: '#dc2626',
+                  padding: '5px'
+                }}
+              >
+                <FaTrash />
+              </div>
+            </div>
+          )}
+        </div>
+        <span>{loc.address}</span>
+        <hr style={{ margin: '4px 0' }} />
+        <span style={{ color: loc.accessibility.hasRamp ? 'green' : 'red' }}>
+          Ramp: {loc.accessibility.hasRamp ? 'Yes' : 'No'}
+        </span>
+        <span style={{ color: loc.accessibility.accessibleWashroom ? 'green' : 'red' }}>
+          Accessible Washroom: {loc.accessibility.accessibleWashroom ? 'Yes' : 'No'}
+        </span>
+        <span style={{ color: loc.accessibility.hasTactilePath ? 'green' : 'red' }}>
+          Tactile Path: {loc.accessibility.hasTactilePath ? 'Yes' : 'No'}
+        </span>
+        <a
+          href={`https://www.google.com/maps?q=${loc.coordinates.lat},${loc.coordinates.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            marginTop: '8px',
+            padding: '8px 12px',
+            backgroundColor: '#7c3aed',
+            color: 'white',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            borderRadius: '8px',
+            textDecoration: 'none'
+          }}
+        >
+          Get Directions
+        </a>
+        {canReview && (
+           <button
+            onClick={() => onReviewClick(loc)}
+            className="block w-full mt-2 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-center rounded-lg flex items-center justify-center gap-2"
+            style={{ border: 'none', cursor: 'pointer', width: '100%' }}
+          >
+            <FaStar /> Leave Review
+          </button>
+        )}
+      </div>
+    </Popup>
+  );
+};
 
 const MapInteractionController = ({ setSelectedLocation, onMapClick }) => {
   useMapEvents({
@@ -53,11 +136,21 @@ const MainApp = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [locationToEdit, setLocationToEdit] = useState(null);
   const [isPlacingLocation, setIsPlacingLocation] = useState(false);
+
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [sosData, setSosData] = useState(null);
+  const [isSOSAcceptedModalOpen, setIsSOSAcceptedModalOpen] = useState(false);
+  const [volunteerInfo, setVolunteerInfo] = useState(null);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false); 
+  const [pendingReviewData, setPendingReviewData] = useState(null); 
+  
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false); 
+  const [locationToReview, setLocationToReview] = useState(null); 
+  const [isVolunteerReviewModalOpen, setIsVolunteerReviewModalOpen] = useState(false); 
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
   const defaultPosition = [17.5348, 78.3843];
   const isVolunteer = auth.user.role === 'volunteer';
-  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false); 
-  const [sosData, setSosData] = useState(null);
 
   const fetchLocations = useCallback(async () => {
     try {
@@ -71,8 +164,13 @@ const MainApp = () => {
   useEffect(() => {
     fetchLocations();
   }, [fetchLocations]);
+  
+  // --- REAL-TIME LISTENERS ---
+  useEffect(() => {
+    if (auth.user.id) {
+      socket.emit('register_user', auth.user.id);
+    }
 
- useEffect(() => {
     function onReceiveSOS(data) {
       if (isVolunteer && data.user.id !== auth.user.id) {
         speak(`Emergency SOS received from ${data.user.fullName}`);
@@ -80,12 +178,26 @@ const MainApp = () => {
         setIsAlertModalOpen(true);
       }
     }
+    
+    function onSOSAccepted(volunteerData) {
+      if (!isVolunteer && volunteerData) {
+        speak(`Help is on the way. ${volunteerData.fullName} has accepted your request.`);
+        setVolunteerInfo(volunteerData);
+        setIsSOSModalOpen(false); 
+        setIsSOSAcceptedModalOpen(true);
+      }
+    }
+
     socket.on('receive_sos', onReceiveSOS);
+    socket.on('sos_accepted', onSOSAccepted);
+    
     return () => {
       socket.off('receive_sos', onReceiveSOS);
+      socket.off('sos_accepted', onSOSAccepted);
     };
   }, [isVolunteer, auth.user.id]);
-
+  // ---------------------------
+  
   const findLocationByName = useCallback((place) => {
     SpeechRecognition.stopListening();
     speak(`Searching for ${place}`);
@@ -122,11 +234,10 @@ const MainApp = () => {
     setIsProcessing(false);
   }, [map]);
   
- const handleSOS = useCallback(() => {
+  const handleSOS = useCallback(() => {
     SpeechRecognition.stopListening();
-    
     if (!userPosition) {
-      speak("I don't know your location. Please click 'Center on Me' first.");
+      speak("I don't know your location. Please center the map first.");
       alert("Please click 'Center on Me' first so I can get your location.");
       return;
     }
@@ -141,7 +252,7 @@ const MainApp = () => {
     setIsSOSModalOpen(true);
     setIsProcessing(false);
   }, [userPosition, auth.user, isVolunteer]);
-
+  
   const openSchemes = useCallback(() => {
     SpeechRecognition.stopListening();
     speak("Showing your personalized schemes");
@@ -161,6 +272,42 @@ const MainApp = () => {
     speak("Sorry, I didn't understand that.");
     setIsProcessing(false);
   }, []);
+  
+  const handleSOSComplete = (data) => {
+      setIsSOSAcceptedModalOpen(false); 
+      setPendingReviewData({
+          userId: auth.user.id,
+          volunteerInfo: data,
+      });
+  };
+  
+  const handleFeedbackSubmitted = () => {
+      setPendingReviewData(null); 
+      setIsFeedbackModalOpen(false); 
+  };
+  
+  const handleOpenFeedbackFromHistory = (volunteerInfo) => {
+      setVolunteerInfo(volunteerInfo);
+      setIsFeedbackModalOpen(true);
+      setIsHistoryModalOpen(false);
+  }
+  
+  const openLocationReviewModal = useCallback((loc) => {
+      setLocationToReview(loc);
+      setIsReviewModalOpen(true);
+      setSelectedLocation(null);
+  }, []);
+  
+  const handleReviewSubmitted = useCallback((isDeleted) => {
+      // If the location failed community verification and was deleted by the backend
+      if (isDeleted) {
+          fetchLocations(); // Re-fetch data to remove the marker from the map
+          alert("Location failed community verification and was removed from the map.");
+      }
+      setLocationToReview(null);
+      setIsReviewModalOpen(false);
+  }, [fetchLocations]);
+
 
   const commands = useMemo(() => [
     {
@@ -268,6 +415,8 @@ const MainApp = () => {
       setNewLocationCoords({ lat: latlng.lat, lng: latlng.lng });
       setIsAddModalOpen(true);
       setIsPlacingLocation(false);
+    } else {
+      setSelectedLocation(null);
     }
   };
 
@@ -370,21 +519,37 @@ const MainApp = () => {
             </button>
 
             {isVolunteer && (
-              <button
-                className={`w-full py-3 text-white font-bold rounded-lg flex items-center justify-center gap-2 ${isPlacingLocation ? 'bg-yellow-500' : 'bg-accent hover:bg-accent-hover'}`}
-                onClick={startAddLocation}
-              >
-                <FaPlus /> {isPlacingLocation ? 'Click map...' : 'Add New Location'}
-              </button>
+              <>
+                <button
+                  className={`w-full py-3 text-white font-bold rounded-lg flex items-center justify-center gap-2 ${isPlacingLocation ? 'bg-yellow-500' : 'bg-accent hover:bg-accent-hover'}`}
+                  onClick={startAddLocation}
+                >
+                  <FaPlus /> {isPlacingLocation ? 'Click map...' : 'Add New Location'}
+                </button>
+                <button
+                    onClick={() => setIsVolunteerReviewModalOpen(true)}
+                    className="w-full py-3 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg flex items-center justify-center gap-2"
+                >
+                    <FaStar /> Service Reviews
+                </button>
+              </>
             )}
 
             {!isVolunteer && (
-              <button
-                className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold text-lg rounded-lg flex items-center justify-center gap-2"
-                onClick={handleSOS}
-              >
-                <FaExclamationTriangle /> EMERGENCY SOS
-              </button>
+              <>
+                <button
+                    onClick={() => setIsHistoryModalOpen(true)} // PwD Service History button
+                    className="w-full py-3 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg flex items-center justify-center gap-2"
+                >
+                    <FaHistory /> Service History
+                </button>
+                <button
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold text-lg rounded-lg flex items-center justify-center gap-2"
+                  onClick={handleSOS}
+                >
+                  <FaExclamationTriangle /> EMERGENCY SOS
+                </button>
+              </>
             )}
 
             <button
@@ -393,6 +558,15 @@ const MainApp = () => {
             >
               <FaFileAlt /> View Schemes
             </button>
+            
+            {pendingReviewData && (
+                 <button
+                    onClick={() => setIsFeedbackModalOpen(true)}
+                    className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 animate-pulse"
+                 >
+                    <FaStar /> Pending Review!
+                 </button>
+            )}
             
             <div className="mt-auto p-2 border border-border rounded-lg">
               <button
@@ -409,7 +583,7 @@ const MainApp = () => {
             </div>
           </aside>
 
-          <main className="flex-1 w-full h-full relative">
+          <main className="flex-1 w-full h-full">
             <MapContainer 
               center={defaultPosition}
               zoom={16} 
@@ -429,14 +603,18 @@ const MainApp = () => {
                   center={userPosition} 
                   radius={10} 
                   pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.5 }}
-                />
+                >
+                  <Popup>Your current location</Popup>
+                </CircleMarker>
               )}
               
               {newLocationCoords && isPlacingLocation && (
                 <Marker 
                   position={[newLocationCoords.lat, newLocationCoords.lng]}
                   icon={DefaultIcon}
-                />
+                >
+                  <Popup>New location coordinates</Popup>
+                </Marker>
               )}
 
               {filteredLocations
@@ -454,15 +632,18 @@ const MainApp = () => {
                     }}
                   />
               ))}
+              
+              {selectedLocation && selectedLocation.coordinates && selectedLocation.coordinates.lat != null && (
+                <InfoBox 
+                  loc={selectedLocation} 
+                  auth={auth}
+                  onClose={() => setSelectedLocation(null)}
+                  onDelete={handleDeleteLocation}
+                  onEdit={openEditLocationModal}
+                  onReviewClick={openLocationReviewModal} // Passing the handler
+                />
+              )}
             </MapContainer>
-            
-            <InfoBox 
-              loc={selectedLocation} 
-              auth={auth}
-              onClose={() => setSelectedLocation(null)}
-              onDelete={handleDeleteLocation}
-              onEdit={openEditLocationModal}
-            />
           </main>
         </div>
       </div>
@@ -476,7 +657,7 @@ const MainApp = () => {
       <AddLocationModal
         isOpen={isAddModalOpen}
         onClose={() => {
-          setIsAddModalOpen(false);
+          setIsAddModalModalOpen(false);
           setLocationToEdit(null);
         }}
         onSubmit={handleAddLocationSubmit}
@@ -502,7 +683,33 @@ const MainApp = () => {
         sosData={sosData}
       />
 
+      <SOSAcceptedModal
+        isOpen={isSOSAcceptedModalOpen}
+        onClose={() => setIsSOSAcceptedModalOpen(false)}
+        onComplete={() => handleSOSComplete(volunteerInfo)}
+        volunteerData={volunteerInfo}
+      />
       
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={handleFeedbackSubmitted}
+        userData={auth.user}
+        volunteerData={pendingReviewData?.volunteerInfo}
+      />
+      
+      <LocationReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        location={locationToReview}
+        user={auth.user}
+        onReviewSubmitted={handleReviewSubmitted}
+      />
+      
+      <VolunteerReviewModal 
+          isOpen={isVolunteerReviewModalOpen}
+          onClose={() => setIsVolunteerReviewModalOpen(false)}
+          userId={auth.user.id} 
+      />
     </>
   );
 };

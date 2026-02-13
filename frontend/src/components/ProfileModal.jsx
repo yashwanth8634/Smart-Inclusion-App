@@ -1,11 +1,12 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { FaTimes, FaUser, FaUserShield, FaEdit, FaSave } from 'react-icons/fa';
+import { FaTimes, FaUser, FaUserShield, FaEdit, FaSave, FaStar } from 'react-icons/fa';
 import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
 
 const ProfileModal = ({ isOpen, onClose, user }) => {
   const { auth, login } = useContext(AuthContext);
   const [isEditing, setIsEditing] = useState(false);
+  const [reviewStats, setReviewStats] = useState(null);
   const [formData, setFormData] = useState({
     fullName: user.fullName || '',
     phone: user.phone || '',
@@ -13,6 +14,8 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
     disabilityOther: user.disabilityOther || '',
   });
   const [error, setError] = useState(null);
+
+  const isVolunteer = user.role === 'volunteer';
 
   useEffect(() => {
     if (isOpen) {
@@ -24,8 +27,19 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
         disabilityType: user.disabilityType || 'none',
         disabilityOther: user.disabilityOther || '',
       });
+
+      if (isVolunteer) {
+        axios.get(`http://localhost:3000/api/feedback/volunteer/${user.id}/reviews`)
+          .then(res => {
+            setReviewStats(res.data);
+          })
+          .catch(err => {
+            console.error("Failed to fetch reviews:", err);
+            setReviewStats({ averageRating: 0, totalReviews: 0 });
+          });
+      }
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, isVolunteer]);
 
   const handleChange = (e) => {
     setFormData({
@@ -37,7 +51,6 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
   const handleSave = async (e) => {
     e.preventDefault();
     setError(null);
-    const isVolunteer = user.role === 'volunteer';
     const url = isVolunteer 
       ? `http://localhost:3000/api/auth/volunteer/${user.id}` 
       : `http://localhost:3000/api/auth/user/${user.id}`;
@@ -52,10 +65,11 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
       setError(error.response?.data?.message || 'Failed to update profile.');
     }
   };
-
-  const isVolunteer = user.role === 'volunteer';
   
   if (!isOpen) return null;
+
+  const displayRating = reviewStats ? reviewStats.averageRating.toFixed(1) : 'N/A';
+  const totalReviews = reviewStats ? reviewStats.totalReviews : 0;
 
   return (
     <div 
@@ -103,6 +117,15 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
               <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isVolunteer ? 'bg-blue-100 text-blue-600' : 'bg-accent/10 text-accent'}`}>
                 {isVolunteer ? 'Volunteer' : 'User'}
               </span>
+
+              {/* Volunteer Rating Display */}
+              {isVolunteer && reviewStats && (
+                <div className="flex items-center text-sm text-text-secondary mt-1">
+                  <FaStar className="text-yellow-400 mr-1" />
+                  <span className="font-bold text-text-primary mr-1">{displayRating}</span>
+                  <span>({totalReviews} Reviews)</span>
+                </div>
+              )}
             </div>
           </div>
 

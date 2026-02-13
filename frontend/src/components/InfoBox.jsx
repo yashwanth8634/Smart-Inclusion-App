@@ -1,11 +1,13 @@
 import React from 'react';
-import { FaTimes, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaTimes, FaEdit, FaTrash, FaStar } from 'react-icons/fa';
 
-const InfoBox = ({ loc, auth, onClose, onEdit, onDelete }) => {
+const InfoBox = ({ loc, auth, onClose, onDelete, onEdit, onReviewClick }) => {
   if (!loc) return null;
 
   const isVolunteer = auth.user.role === 'volunteer';
-  const canModify = isVolunteer && loc.addedBy.toString() === auth.user.id;
+  const isOwner = loc.addedBy.toString() === auth.user.id;
+  const canModify = isVolunteer && isOwner;
+  const canReview = auth.user.role === 'user' && !isOwner; // Only PwD users who aren't the owner can review
 
   return (
     <div 
@@ -15,6 +17,7 @@ const InfoBox = ({ loc, auth, onClose, onEdit, onDelete }) => {
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-xl font-bold font-display text-text-primary">{loc.name}</h3>
           <div className="flex items-center gap-2">
+            
             {canModify && (
               <>
                 <button onClick={() => onEdit(loc)} className="text-accent hover:text-accent-hover">
@@ -48,16 +51,25 @@ const InfoBox = ({ loc, auth, onClose, onEdit, onDelete }) => {
         </div>
 
         <a
-          href={`http://googleusercontent.com/maps?q=${loc.coordinates.lat},${loc.coordinates.lng}`}
+          href={`https://www.google.com/maps?q=${loc.coordinates.lat},${loc.coordinates.lng}`}
           target="_blank"
           rel="noopener noreferrer"
           className="block w-full mt-4 py-2 bg-accent hover:bg-accent-hover text-white font-bold text-center rounded-lg"
         >
           Get Directions
         </a>
+        
+        {canReview && (
+          <button
+            onClick={() => onReviewClick(loc)}
+            className="block w-full mt-2 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-center rounded-lg flex items-center justify-center gap-2"
+          >
+            <FaStar /> Leave a Review
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
-export default InfoBox;     
+export default InfoBox;

@@ -1,14 +1,24 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { FaTimes, FaUser, FaPhone, FaMapMarkerAlt } from 'react-icons/fa';
+import { socket } from '../socket';
+import { AuthContext } from '../context/AuthContext';
 
 const SOSAlertModal = ({ isOpen, onClose, sosData }) => {
+  const { auth } = useContext(AuthContext); // Get the volunteer's info
+
   if (!isOpen || !sosData) return null;
 
   const { user, position } = sosData;
 
   const handleAccept = () => {
-    // In a real app, this would notify the user that help is coming
-    alert("You have accepted the alert. Please proceed to the user's location.");
+    // Send the volunteer's info back to the server
+    socket.emit('volunteer_accept_sos', {
+      volunteerInfo: auth.user, // The volunteer's details
+      userId: user.id, // The ID of the user in distress
+    });
+
+    // Open Google Maps in a new tab
+    window.open(`https://www.google.com/maps?q=${position[0]},${position[1]}`, '_blank');
     onClose();
   };
 
@@ -48,14 +58,12 @@ const SOSAlertModal = ({ isOpen, onClose, sosData }) => {
             </p>
           </div>
 
-          <a
-            href={`http://googleusercontent.com/maps?q=${position[0]},${position[1]}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full text-center mt-6 py-3 bg-accent hover:bg-accent-hover text-white font-bold rounded-lg"
+          <button
+            onClick={handleAccept}
+            className="w-full text-center mt-6 py-3 bg-accent hover:bg-accent-hover text-white font-bold rounded-lg"
           >
-            Navigate to User
-          </a>
+            Accept & Navigate to User
+          </button>
           
           <button
             onClick={onClose}

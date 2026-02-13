@@ -1,5 +1,5 @@
 const express = require('express');
-const cors =require('cors');
+const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
 const http = require('http');
@@ -8,6 +8,8 @@ const { Server } = require("socket.io");
 const authRoutes = require('./routes/auth');
 const locationRoutes = require('./routes/locations');
 const schemeRoutes = require('./routes/schemes');
+const feedbackRoutes = require('./routes/feedback');
+const locationReviewRoutes = require('./routes/locationReview');
 
 const app = express();
 
@@ -30,6 +32,8 @@ mongoose.connect(uri)
 app.use('/api/auth', authRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/schemes', schemeRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/locations', locationReviewRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hello from the Smart Inclusion Server!');
@@ -37,7 +41,6 @@ app.get('/', (req, res) => {
 
 const PORT = 3000;
 
-// --- Socket.io Setup ---
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -46,19 +49,39 @@ const io = new Server(server, {
   }
 });
 
+let userSocketMap = {};
+
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
+
+  socket.on('register_user', (userId) => {
+    userSocketMap[userId] = socket.id;
+    console.log(`User ${userId} registered with socket ${socket.id}`);
+  });
 
   socket.on('send_sos', (data) => {
     console.log('SOS Received:', data);
     io.emit('receive_sos', data);
   });
+  
+  socket.on('volunteer_accept_sos', (data) => {
+    console.log('SOS Accepted by Volunteer:', data.volunteerInfo.fullName);
+    const userSocketId = userSocketMap[data.userId];
+    if (userSocketId) {
+      io.to(userSocketId).emit('sos_accepted', data.volunteerInfo);
+    }
+  });
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
+    for (let userId in userSocketMap) {
+      if (userSocketMap[userId] === socket.id) {
+        delete userSocketMap[userId];
+        break;
+      }
+    }
   });
 });
-// -----------------------
 
 server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
